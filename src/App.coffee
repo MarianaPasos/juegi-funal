@@ -1,73 +1,89 @@
-Bob = require("./elements/Bob")
-Bobimage = require("./assets/bob.png")
 Background = require ("./elements/Background")
-Bg = require("./assets/background.png")
-Back = require("./elements/Back")
-B = require("./assets/camino.png")
-bobData = require('./assets/Bob.json')
-
+Bg = require("./assets/background.jpg")
+Piso = require('./elements/Piso')
+pisos = require('./data/pisos')
+Enemy = require('./elements/Enemies')
+enemies = require('./data/enemies')
+Hero = require('./elements/Hero')
 
 
 class App extends PIXI.Application
   animation:true
   animationNodes:[]
-  Bob: null
+  pisos: []
+  enemies: []
+  hero: null
+  leftPressed: false
+  rightPressed: false
+  upPressed: false
+  downPressed: false
+  jumpPressed: false
+
   constructor:(w,h,o)->
     super(w,h,o)
     document.body.appendChild @view
     window.addEventListener("keypress", @onKeyPress)
     window.addEventListener 'keyup', @onKeyUp
     @preload()
-    @animate()
 
 
   preload:=>
-    PIXI.loader.add(Bg).add(B).add(bobData).load(@build)
+    PIXI.loader.add(Bg).load(@build)
 
   onKeyPress:(evt)=>
-    if evt.key is 's'
-      @Bob.idle.y += 3
-      for i in [1..21] by 1
-        frames.push(PIXI.Texture.fromFrame("slide #{i}.png"))
     if evt.key is 'w'
-      @Bob.idle.y -= 3
-      for i in [1..18] by 1
-        frames.push(PIXI.Texture.fromFrame("jump #{i}.png"))
+      @hero.jump = @hero.jump + 1
+      if @hero.jump < 4 
+        @hero.gravitySpeed = -6
+        @hero.onPlataform = false
     if evt.key is 'a'
-      @Bob.idle.x -= 3
-      @Bob.idle.scale.x = -1
-      for i in [1..13] by 1
-        frames.push(PIXI.Texture.fromFrame("walk #{i}.png"))
+      @leftPressed = true
+      @hero.x -= 3
     if evt.key is 'd'
-      @Bob.idle.x += 3
-      @Bob.idle.scale.x = 1
-      for i in [1..13] by 1
-        frames.push(PIXI.Texture.fromFrame("walk #{i}.png"))
+      @rightPressed = true
+      @hero.x += 3
+
   onKeyUp:(evt)=>
-    if evt.key is 'w'
-      for i in [1..5] by 1
-        frames.push(PIXI.Texture.fromFrame("idle #{i}.png"))
     if evt.key is 'a'
-      for i in [1..5] by 1
-        frames.push(PIXI.Texture.fromFrame("idle #{i}.png"))
+      @leftPressed = false
+      @hero.xAcc = 0
     if evt.key is 'd'
-      for i in [1..5] by 1
-        frames.push(PIXI.Texture.fromFrame("idle #{i}.png"))
-    if evt.key is 's'
-      for i in [1..5] by 1
-        frames.push(PIXI.Texture.fromFrame("idle #{i}.png"))
+      @rightPressed = false
+      @hero.xAcc = 0
+
 
   build:() =>
     Bg = new Background(Bg)
     Bg.alpha = 0.5
     
-    B = new Back(B)
     
     container = new PIXI.Container
     container.addChild(Bg)
-    container.addChild(B)
     @stage.addChild container
-    @Bob = new Bob(@)
+
+    for p in pisos
+      plataformas = new Piso(p, @)
+      @stage.addChild(plataformas)
+      @pisos.push(plataformas)
+
+    for e in enemies
+      badboys = new Enemy(e, @)
+      @stage.addChild(badboys)
+      @enemies.push(badboys)
+
+    @hero = new Hero(@)
+    @addAnimationNodes @hero
+    @stage.addChild @hero
+    @animate()
+
+
+  collisions:(player, arr)=>
+    for p in arr
+      if(player.x < p.x + p.width and p.x < player.x + player.width and player.y < p.y + p.height and p.y < player.y + player.height and player.y + player.height - p.y < player.gravitySpeed)
+        player.y = p.y - player.height + 1
+        return true
+
+
 
 
 
@@ -77,6 +93,16 @@ class App extends PIXI.Application
 
   animate:=>
     @ticker.add ()=>
+      if @collisions(@hero, @pisos) 
+        #@hero.gravitySpeed = 0
+        @hero.onPlataform = true
+        @hero.jump = 0 
+      else
+        null
+        @hero.onPlataform = false
+      if @collisions(@hero, @enemies) 
+        @hero.x = 100
+        @hero.y = 550
       for n in @animationNodes
         n.animate?()
 
